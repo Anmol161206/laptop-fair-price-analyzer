@@ -1,0 +1,12 @@
+# Runtime dependencies for the deployed Streamlit app (Streamlit Community Cloud uses this file).
+# Full development / notebook environment: environment-dev.yml (conda).
+streamlit==1.64.0
+numpy==2.4.6
+pandas==3.0.6
+scikit-learn==1.9.1
+joblib==1.6.0
+# XGBoost 3.4.2 (used locally via conda-forge) is not published on PyPI; 3.4.1 is the latest PyPI release.
+# xgboost-cpu is the official CPU-only build (no ~300 MB NVIDIA NCCL dependency); it has no macOS wheel,
+# and the regular macOS wheel is already CPU-only.
+xgboost-cpu==3.4.1; sys_platform != "darwin"
+xgboost==3.4.1; sys_platform == "darwin"

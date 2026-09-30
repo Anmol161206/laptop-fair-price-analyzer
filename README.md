@@ -124,12 +124,41 @@ The app contains no feature-engineering logic of its own. Training, prediction a
 
 ## Run locally
 
+There are two environments.
+
+### Run the deployed/runtime app
+
+This uses the same minimal pip dependencies as the deployed app. It needs Python 3.12 or newer, because PyPI's
+XGBoost 3.4 requires Python ≥ 3.12.
+
 ```bash
-conda env create -f environment.yml      # first time only (Python 3.11, pinned package versions)
-conda activate laptop_price
+python -m pip install -r requirements.txt
 streamlit run app.py                     # then open http://localhost:8501
+```
+
+On macOS, pip's XGBoost wheel needs the OpenMP runtime: `brew install libomp`.
+
+### Full development/notebook environment
+
+This is the conda environment the notebooks, training and tests were built with (Python 3.11, XGBoost 3.4.2 from
+conda-forge).
+
+```bash
+conda env create -f environment-dev.yml
+conda activate laptop_price
 python -m unittest discover -s tests -v  # run the test suite
 ```
+
+**Why the two environments use different Python/XGBoost versions:**
+
+- The model was saved with XGBoost 3.4.2 from conda-forge. That exact version is not published on PyPI, and PyPI's
+  XGBoost 3.3+ requires Python ≥ 3.12.
+- The deployed app therefore uses Python 3.12 with `xgboost-cpu` 3.4.1, the official CPU-only build without
+  NVIDIA libraries.
+- I checked the saved model under that setup: predictions are **bit-identical** to the development environment on
+  all 1,273 laptops, and all 37 tests pass in both environments.
+- XGBoost logs one generic "model saved by a different version" warning in the server log when the model loads.
+  Users never see it.
 
 The prediction interface can also be used directly from Python:
 
@@ -156,8 +185,10 @@ existing model: `python -m src.train --metadata-only`.
 
 **Deploying on Streamlit Community Cloud:**
 
-- Use entrypoint `app.py` on branch `main`, and select **Python 3.11** under *Advanced settings*.
-- `environment.yml` is the only dependency file. No secrets are needed.
+- Use entrypoint `app.py` on branch `main`, and select **Python 3.12** under *Advanced settings*.
+- Community Cloud installs from `requirements.txt`, the only dependency file it recognises in this repository.
+  `environment-dev.yml` is not picked up.
+- No secrets are needed.
 
 ## Repository structure
 
@@ -172,7 +203,7 @@ existing model: `python -m src.train --metadata-only`.
 | `src/app_helpers.py` | UI-only helpers: INR formatting, resolution labels, listed-price comparison |
 | `artifacts/laptop_price_model.joblib` | Fitted pipeline (company grouping, one-hot encoding, XGBoost) |
 | `artifacts/model_metadata.json` | Features, company grouping, dropdown values, metrics, limitations, library versions |
-| `environment.yml` | Dependencies (conda, Python 3.11, versions that created the model) |
+| `requirements.txt` | Minimal runtime dependencies (pip, used by Streamlit Community Cloud) |
 
 **Research and project-history files** (not needed at runtime):
 
@@ -185,6 +216,7 @@ existing model: `python -m src.train --metadata-only`.
 | `05_final_evaluation.ipynb` | Duplicate/leakage audit, group-aware evaluation, error analysis |
 | `06_production_pipeline.ipynb` | Sanity check of the production package |
 | `src/train.py` | Frozen training script |
+| `environment-dev.yml` | Full conda development environment (Python 3.11, notebooks, training) |
 | `tests/` | Model-pipeline and website tests |
 | `laptop_data.csv`, `laptop_clean.csv` | Raw and cleaned dataset |
 | `*.png` | Charts from the notebooks |
