@@ -1,0 +1,27 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets and local environment (never commit)
+.streamlit/secrets.toml
+.env
+.env.*
+
+# Test / coverage output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.log

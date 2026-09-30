@@ -1,0 +1,831 @@
+{
+  "model_name": "laptop-price-xgboost",
+  "model_version": "1.0.0",
+  "model_type": "scikit-learn Pipeline: CompanyGrouper -> ColumnTransformer(OneHotEncoder, passthrough) -> XGBRegressor",
+  "training_date": "2026-09-30",
+  "model_file": "laptop_price_model.joblib",
+  "model_file_sha256": "4cdabb93d8c176f2b06c72f3d375498075358ec3343725a84ad7f45b4a22db6f",
+  "model_file_size_bytes": 2147649,
+  "training_data": {
+    "source": "laptop_data.csv",
+    "raw_rows": 1303,
+    "removed": "Samsung ARM laptop (1 row) and 29 exact duplicate copies",
+    "n_training_observations": 1273,
+    "price_range_rupees": [
+      9270.72,
+      324954.72
+    ]
+  },
+  "target_transformation": "log",
+  "target_transformation_detail": "model is trained on y = numpy.log(Price) (natural log)",
+  "price_inverse_transformation": "exp",
+  "price_inverse_transformation_detail": "predicted Price = numpy.exp(model prediction)",
+  "currency": "INR",
+  "input_spec_fields": [
+    "company",
+    "type_name",
+    "ram_gb",
+    "weight_kg",
+    "inches",
+    "resolution_width",
+    "resolution_height",
+    "touchscreen",
+    "ips",
+    "cpu",
+    "cpu_ghz",
+    "gpu",
+    "os",
+    "ssd_gb",
+    "hdd_gb"
+  ],
+  "pipeline_input_columns": [
+    "Company",
+    "TypeName",
+    "Cpu brand",
+    "os",
+    "cpu_type",
+    "cpu_gen",
+    "gpu_tier",
+    "Ram",
+    "Weight",
+    "Touchscreen",
+    "Ips",
+    "ppi",
+    "SSD",
+    "HDD",
+    "cpu_ghz",
+    "Inches",
+    "X_res",
+    "Y_res"
+  ],
+  "final_feature_names": [
+    "TypeName",
+    "Cpu brand",
+    "os",
+    "cpu_type",
+    "cpu_gen",
+    "gpu_tier",
+    "Company_grouped",
+    "Ram",
+    "Weight",
+    "Touchscreen",
+    "Ips",
+    "ppi",
+    "SSD",
+    "HDD",
+    "cpu_ghz",
+    "Inches",
+    "X_res",
+    "Y_res"
+  ],
+  "categorical_features": [
+    "TypeName",
+    "Cpu brand",
+    "os",
+    "cpu_type",
+    "cpu_gen",
+    "gpu_tier",
+    "Company_grouped"
+  ],
+  "numerical_features": [
+    "Ram",
+    "Weight",
+    "Touchscreen",
+    "Ips",
+    "ppi",
+    "SSD",
+    "HDD",
+    "cpu_ghz",
+    "Inches",
+    "X_res",
+    "Y_res"
+  ],
+  "company_grouping": {
+    "rule": "companies with fewer than 10 laptops in the training data, and any company not seen in training, are mapped to \"Other\"",
+    "min_count": 10,
+    "fitted_on_rows": 1273,
+    "frequent_companies": [
+      "Acer",
+      "Apple",
+      "Asus",
+      "Dell",
+      "HP",
+      "Lenovo",
+      "MSI",
+      "Toshiba"
+    ],
+    "rare_companies": [
+      "Chuwi",
+      "Fujitsu",
+      "Google",
+      "Huawei",
+      "LG",
+      "Mediacom",
+      "Microsoft",
+      "Razer",
+      "Samsung",
+      "Vero",
+      "Xiaomi"
+    ]
+  },
+  "category_levels": {
+    "TypeName": [
+      "2 in 1 Convertible",
+      "Gaming",
+      "Netbook",
+      "Notebook",
+      "Ultrabook",
+      "Workstation"
+    ],
+    "Cpu brand": [
+      "AMD Processor",
+      "Intel Core i3",
+      "Intel Core i5",
+      "Intel Core i7",
+      "Other Intel Processor"
+    ],
+    "os": [
+      "Mac",
+      "Others/No OS/Linux",
+      "Windows"
+    ],
+    "cpu_type": [
+      "High-performance (H)",
+      "Low-power (U)",
+      "Other",
+      "Ultra-low-power (Y)"
+    ],
+    "cpu_gen": [
+      "Gen 6",
+      "Gen 7",
+      "Gen 8",
+      "Unknown"
+    ],
+    "gpu_tier": [
+      "AMD Pro/FirePro",
+      "AMD other",
+      "Intel HD/UHD",
+      "Intel Iris",
+      "Nvidia GTX",
+      "Nvidia Quadro",
+      "Nvidia other (MX/GT/9xxMX)"
+    ],
+    "Company_grouped": [
+      "Acer",
+      "Apple",
+      "Asus",
+      "Dell",
+      "HP",
+      "Lenovo",
+      "MSI",
+      "Other",
+      "Toshiba"
+    ]
+  },
+  "known_raw_values": {
+    "company": [
+      "Acer",
+      "Apple",
+      "Asus",
+      "Chuwi",
+      "Dell",
+      "Fujitsu",
+      "Google",
+      "HP",
+      "Huawei",
+      "LG",
+      "Lenovo",
+      "MSI",
+      "Mediacom",
+      "Microsoft",
+      "Razer",
+      "Samsung",
+      "Toshiba",
+      "Vero",
+      "Xiaomi"
+    ],
+    "type_name": [
+      "2 in 1 Convertible",
+      "Gaming",
+      "Netbook",
+      "Notebook",
+      "Ultrabook",
+      "Workstation"
+    ],
+    "os": [
+      "Android",
+      "Chrome OS",
+      "Linux",
+      "Mac OS X",
+      "No OS",
+      "Windows 10",
+      "Windows 10 S",
+      "Windows 7",
+      "macOS"
+    ],
+    "cpu": [
+      "AMD A10-Series 9600P 2.4GHz",
+      "AMD A10-Series 9620P 2.5GHz",
+      "AMD A10-Series A10-9620P 2.5GHz",
+      "AMD A12-Series 9700P 2.5GHz",
+      "AMD A12-Series 9720P 2.7GHz",
+      "AMD A12-Series 9720P 3.6GHz",
+      "AMD A4-Series 7210 2.2GHz",
+      "AMD A6-Series 7310 2GHz",
+      "AMD A6-Series 9220 2.5GHz",
+      "AMD A6-Series 9220 2.9GHz",
+      "AMD A6-Series A6-9220 2.5GHz",
+      "AMD A8-Series 7410 2.2GHz",
+      "AMD A9-Series 9410 2.9GHz",
+      "AMD A9-Series 9420 2.9GHz",
+      "AMD A9-Series 9420 3GHz",
+      "AMD A9-Series A9-9420 3GHz",
+      "AMD E-Series 6110 1.5GHz",
+      "AMD E-Series 7110 1.8GHz",
+      "AMD E-Series 9000 2.2GHz",
+      "AMD E-Series 9000e 1.5GHz",
+      "AMD E-Series E2-6110 1.5GHz",
+      "AMD E-Series E2-9000 2.2GHz",
+      "AMD E-Series E2-9000e 1.5GHz",
+      "AMD FX 8800P 2.1GHz",
+      "AMD FX 9830P 3GHz",
+      "AMD Ryzen 1600 3.2GHz",
+      "AMD Ryzen 1700 3GHz",
+      "Intel Atom X5-Z8350 1.44GHz",
+      "Intel Atom Z8350 1.92GHz",
+      "Intel Atom x5-Z8300 1.44GHz",
+      "Intel Atom x5-Z8350 1.44GHz",
+      "Intel Atom x5-Z8550 1.44GHz",
+      "Intel Celeron Dual Core 3205U 1.5GHz",
+      "Intel Celeron Dual Core 3855U 1.6GHz",
+      "Intel Celeron Dual Core N3050 1.6GHz",
+      "Intel Celeron Dual Core N3060 1.60GHz",
+      "Intel Celeron Dual Core N3060 1.6GHz",
+      "Intel Celeron Dual Core N3350 1.1GHz",
+      "Intel Celeron Dual Core N3350 2.0GHz",
+      "Intel Celeron Dual Core N3350 2GHz",
+      "Intel Celeron Quad Core N3160 1.6GHz",
+      "Intel Celeron Quad Core N3450 1.1GHz",
+      "Intel Celeron Quad Core N3710 1.6GHz",
+      "Intel Core M 1.1GHz",
+      "Intel Core M 1.2GHz",
+      "Intel Core M 6Y30 0.9GHz",
+      "Intel Core M 6Y54 1.1GHz",
+      "Intel Core M 6Y75 1.2GHz",
+      "Intel Core M 7Y30 1.0GHz",
+      "Intel Core M M3-6Y30 0.9GHz",
+      "Intel Core M M7-6Y75 1.2GHz",
+      "Intel Core M m3 1.2GHz",
+      "Intel Core M m3-7Y30 2.2GHz",
+      "Intel Core M m7-6Y75 1.2GHz",
+      "Intel Core i3 6006U 2.0GHz",
+      "Intel Core i3 6006U 2.2GHz",
+      "Intel Core i3 6006U 2GHz",
+      "Intel Core i3 6100U 2.1GHz",
+      "Intel Core i3 6100U 2.3GHz",
+      "Intel Core i3 7100U 2.4GHz",
+      "Intel Core i3 7130U 2.7GHz",
+      "Intel Core i5 1.3GHz",
+      "Intel Core i5 1.6GHz",
+      "Intel Core i5 1.8GHz",
+      "Intel Core i5 2.0GHz",
+      "Intel Core i5 2.3GHz",
+      "Intel Core i5 2.9GHz",
+      "Intel Core i5 3.1GHz",
+      "Intel Core i5 6200U 2.3GHz",
+      "Intel Core i5 6260U 1.8GHz",
+      "Intel Core i5 6300HQ 2.3GHz",
+      "Intel Core i5 6300U 2.4GHz",
+      "Intel Core i5 6440HQ 2.6GHz",
+      "Intel Core i5 7200U 2.50GHz",
+      "Intel Core i5 7200U 2.5GHz",
+      "Intel Core i5 7200U 2.70GHz",
+      "Intel Core i5 7200U 2.7GHz",
+      "Intel Core i5 7300HQ 2.5GHz",
+      "Intel Core i5 7300U 2.6GHz",
+      "Intel Core i5 7440HQ 2.8GHz",
+      "Intel Core i5 7500U 2.7GHz",
+      "Intel Core i5 7Y54 1.2GHz",
+      "Intel Core i5 7Y57 1.2GHz",
+      "Intel Core i5 8250U 1.6GHz",
+      "Intel Core i7 2.2GHz",
+      "Intel Core i7 2.7GHz",
+      "Intel Core i7 2.8GHz",
+      "Intel Core i7 2.9GHz",
+      "Intel Core i7 6500U 2.50GHz",
+      "Intel Core i7 6500U 2.5GHz",
+      "Intel Core i7 6560U 2.2GHz",
+      "Intel Core i7 6600U 2.6GHz",
+      "Intel Core i7 6700HQ 2.6GHz",
+      "Intel Core i7 6820HK 2.7GHz",
+      "Intel Core i7 6820HQ 2.7GHz",
+      "Intel Core i7 6920HQ 2.9GHz",
+      "Intel Core i7 7500U 2.5GHz",
+      "Intel Core i7 7500U 2.7GHz",
+      "Intel Core i7 7560U 2.4GHz",
+      "Intel Core i7 7600U 2.8GHz",
+      "Intel Core i7 7660U 2.5GHz",
+      "Intel Core i7 7700HQ 2.7GHz",
+      "Intel Core i7 7700HQ 2.8GHz",
+      "Intel Core i7 7820HK 2.9GHz",
+      "Intel Core i7 7820HQ 2.9GHz",
+      "Intel Core i7 7Y75 1.3GHz",
+      "Intel Core i7 8550U 1.8GHz",
+      "Intel Core i7 8650U 1.9GHz",
+      "Intel Pentium Dual Core 4405U 2.1GHz",
+      "Intel Pentium Dual Core 4405Y 1.5GHz",
+      "Intel Pentium Dual Core N4200 1.1GHz",
+      "Intel Pentium Quad Core N3700 1.6GHz",
+      "Intel Pentium Quad Core N3710 1.6GHz",
+      "Intel Pentium Quad Core N4200 1.1GHz",
+      "Intel Xeon E3-1505M V6 3GHz",
+      "Intel Xeon E3-1535M v5 2.9GHz",
+      "Intel Xeon E3-1535M v6 3.1GHz"
+    ],
+    "gpu": [
+      "AMD FirePro W4190M",
+      "AMD FirePro W5130M",
+      "AMD FirePro W6150M",
+      "AMD R17M-M1-70",
+      "AMD R4 Graphics",
+      "AMD Radeon 520",
+      "AMD Radeon 530",
+      "AMD Radeon 540",
+      "AMD Radeon Pro 455",
+      "AMD Radeon Pro 555",
+      "AMD Radeon Pro 560",
+      "AMD Radeon R2",
+      "AMD Radeon R2 Graphics",
+      "AMD Radeon R3",
+      "AMD Radeon R4",
+      "AMD Radeon R4 Graphics",
+      "AMD Radeon R5",
+      "AMD Radeon R5 430",
+      "AMD Radeon R5 520",
+      "AMD Radeon R5 M315",
+      "AMD Radeon R5 M330",
+      "AMD Radeon R5 M420",
+      "AMD Radeon R5 M420X",
+      "AMD Radeon R5 M430",
+      "AMD Radeon R7",
+      "AMD Radeon R7 Graphics",
+      "AMD Radeon R7 M360",
+      "AMD Radeon R7 M365X",
+      "AMD Radeon R7 M440",
+      "AMD Radeon R7 M445",
+      "AMD Radeon R7 M460",
+      "AMD Radeon R7 M465",
+      "AMD Radeon R9 M385",
+      "AMD Radeon RX 540",
+      "AMD Radeon RX 550",
+      "AMD Radeon RX 560",
+      "AMD Radeon RX 580",
+      "Intel Graphics 620",
+      "Intel HD Graphics",
+      "Intel HD Graphics 400",
+      "Intel HD Graphics 405",
+      "Intel HD Graphics 500",
+      "Intel HD Graphics 505",
+      "Intel HD Graphics 510",
+      "Intel HD Graphics 515",
+      "Intel HD Graphics 520",
+      "Intel HD Graphics 530",
+      "Intel HD Graphics 5300",
+      "Intel HD Graphics 540",
+      "Intel HD Graphics 6000",
+      "Intel HD Graphics 615",
+      "Intel HD Graphics 620",
+      "Intel HD Graphics 630",
+      "Intel Iris Graphics 540",
+      "Intel Iris Graphics 550",
+      "Intel Iris Plus Graphics 640",
+      "Intel Iris Plus Graphics 650",
+      "Intel Iris Pro Graphics",
+      "Intel UHD Graphics 620",
+      "Nvidia GTX 980 SLI",
+      "Nvidia GeForce 150MX",
+      "Nvidia GeForce 920",
+      "Nvidia GeForce 920M",
+      "Nvidia GeForce 920MX",
+      "Nvidia GeForce 930M",
+      "Nvidia GeForce 930MX",
+      "Nvidia GeForce 940M",
+      "Nvidia GeForce 940MX",
+      "Nvidia GeForce 960M",
+      "Nvidia GeForce GT 940MX",
+      "Nvidia GeForce GTX 1050",
+      "Nvidia GeForce GTX 1050 Ti",
+      "Nvidia GeForce GTX 1050M",
+      "Nvidia GeForce GTX 1050Ti",
+      "Nvidia GeForce GTX 1060",
+      "Nvidia GeForce GTX 1070",
+      "Nvidia GeForce GTX 1070M",
+      "Nvidia GeForce GTX 1080",
+      "Nvidia GeForce GTX 930MX",
+      "Nvidia GeForce GTX 940M",
+      "Nvidia GeForce GTX 940MX",
+      "Nvidia GeForce GTX 950M",
+      "Nvidia GeForce GTX 960",
+      "Nvidia GeForce GTX 960<U+039C>",
+      "Nvidia GeForce GTX 960M",
+      "Nvidia GeForce GTX 965M",
+      "Nvidia GeForce GTX 970M",
+      "Nvidia GeForce GTX 980",
+      "Nvidia GeForce GTX 980M",
+      "Nvidia GeForce GTX1050 Ti",
+      "Nvidia GeForce GTX1060",
+      "Nvidia GeForce GTX1080",
+      "Nvidia GeForce MX130",
+      "Nvidia GeForce MX150",
+      "Nvidia Quadro 3000M",
+      "Nvidia Quadro M1000M",
+      "Nvidia Quadro M1200",
+      "Nvidia Quadro M2000M",
+      "Nvidia Quadro M2200",
+      "Nvidia Quadro M2200M",
+      "Nvidia Quadro M3000M",
+      "Nvidia Quadro M500M",
+      "Nvidia Quadro M520M",
+      "Nvidia Quadro M620",
+      "Nvidia Quadro M620M"
+    ]
+  },
+  "training_numeric_ranges": {
+    "ram_gb": [
+      2.0,
+      64.0
+    ],
+    "weight_kg": [
+      0.69,
+      4.7
+    ],
+    "inches": [
+      10.1,
+      18.4
+    ],
+    "resolution_width": [
+      1366.0,
+      3840.0
+    ],
+    "resolution_height": [
+      768.0,
+      2160.0
+    ],
+    "cpu_ghz": [
+      0.9,
+      3.6
+    ],
+    "ssd_gb": [
+      0.0,
+      1024.0
+    ],
+    "hdd_gb": [
+      0.0,
+      2000.0
+    ]
+  },
+  "observed_input_values": {
+    "ram_gb": [
+      {
+        "value": 2,
+        "count": 16
+      },
+      {
+        "value": 4,
+        "count": 365
+      },
+      {
+        "value": 6,
+        "count": 35
+      },
+      {
+        "value": 8,
+        "count": 613
+      },
+      {
+        "value": 12,
+        "count": 25
+      },
+      {
+        "value": 16,
+        "count": 198
+      },
+      {
+        "value": 24,
+        "count": 3
+      },
+      {
+        "value": 32,
+        "count": 17
+      },
+      {
+        "value": 64,
+        "count": 1
+      }
+    ],
+    "ssd_gb": [
+      {
+        "value": 0,
+        "count": 436
+      },
+      {
+        "value": 8,
+        "count": 1
+      },
+      {
+        "value": 16,
+        "count": 3
+      },
+      {
+        "value": 32,
+        "count": 6
+      },
+      {
+        "value": 64,
+        "count": 1
+      },
+      {
+        "value": 128,
+        "count": 170
+      },
+      {
+        "value": 180,
+        "count": 5
+      },
+      {
+        "value": 240,
+        "count": 1
+      },
+      {
+        "value": 256,
+        "count": 498
+      },
+      {
+        "value": 512,
+        "count": 134
+      },
+      {
+        "value": 768,
+        "count": 1
+      },
+      {
+        "value": 1000,
+        "count": 16
+      },
+      {
+        "value": 1024,
+        "count": 1
+      }
+    ],
+    "hdd_gb": [
+      {
+        "value": 0,
+        "count": 714
+      },
+      {
+        "value": 32,
+        "count": 1
+      },
+      {
+        "value": 128,
+        "count": 1
+      },
+      {
+        "value": 500,
+        "count": 125
+      },
+      {
+        "value": 1000,
+        "count": 400
+      },
+      {
+        "value": 2000,
+        "count": 32
+      }
+    ],
+    "inches": [
+      {
+        "value": 10.1,
+        "count": 4
+      },
+      {
+        "value": 11.3,
+        "count": 1
+      },
+      {
+        "value": 11.6,
+        "count": 31
+      },
+      {
+        "value": 12.0,
+        "count": 6
+      },
+      {
+        "value": 12.3,
+        "count": 4
+      },
+      {
+        "value": 12.5,
+        "count": 39
+      },
+      {
+        "value": 13.0,
+        "count": 2
+      },
+      {
+        "value": 13.3,
+        "count": 160
+      },
+      {
+        "value": 13.5,
+        "count": 6
+      },
+      {
+        "value": 13.9,
+        "count": 6
+      },
+      {
+        "value": 14.0,
+        "count": 193
+      },
+      {
+        "value": 14.1,
+        "count": 1
+      },
+      {
+        "value": 15.0,
+        "count": 4
+      },
+      {
+        "value": 15.4,
+        "count": 4
+      },
+      {
+        "value": 15.6,
+        "count": 646
+      },
+      {
+        "value": 17.0,
+        "count": 1
+      },
+      {
+        "value": 17.3,
+        "count": 164
+      },
+      {
+        "value": 18.4,
+        "count": 1
+      }
+    ],
+    "resolutions": [
+      {
+        "width": 1920,
+        "height": 1080,
+        "count": 833
+      },
+      {
+        "width": 1366,
+        "height": 768,
+        "count": 289
+      },
+      {
+        "width": 3840,
+        "height": 2160,
+        "count": 43
+      },
+      {
+        "width": 3200,
+        "height": 1800,
+        "count": 25
+      },
+      {
+        "width": 1600,
+        "height": 900,
+        "count": 23
+      },
+      {
+        "width": 2560,
+        "height": 1440,
+        "count": 23
+      },
+      {
+        "width": 2256,
+        "height": 1504,
+        "count": 6
+      },
+      {
+        "width": 2304,
+        "height": 1440,
+        "count": 6
+      },
+      {
+        "width": 2560,
+        "height": 1600,
+        "count": 6
+      },
+      {
+        "width": 1920,
+        "height": 1200,
+        "count": 5
+      },
+      {
+        "width": 1440,
+        "height": 900,
+        "count": 4
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "count": 4
+      },
+      {
+        "width": 2400,
+        "height": 1600,
+        "count": 3
+      },
+      {
+        "width": 2160,
+        "height": 1440,
+        "count": 2
+      },
+      {
+        "width": 2736,
+        "height": 1824,
+        "count": 1
+      }
+    ]
+  },
+  "hyperparameters": {
+    "n_estimators": 300,
+    "learning_rate": 0.02,
+    "max_depth": 8,
+    "subsample": 0.8,
+    "colsample_bytree": 0.4,
+    "min_child_weight": 1,
+    "reg_lambda": 0.5,
+    "random_state": 2,
+    "n_jobs": 1,
+    "tree_method": "hist"
+  },
+  "evaluation_before_final_refit": {
+    "protocol": "Notebook 05: exact duplicates and ARM row removed (1,273 rows); GroupShuffleSplit grouped by full raw specification, test_size=0.20, random_state=42 -> 1,015 train / 258 holdout rows; hyperparameters chosen by group-aware 5-fold CV on the training rows only; holdout scored once.",
+    "note": "These metrics come from the locked evaluation BEFORE the final refit. The saved production model was refit on all 1,273 rows and therefore has no independent test score of its own; these numbers are the best estimate of its performance on new laptops.",
+    "train_rows": 1015,
+    "holdout_rows": 258,
+    "holdout": {
+      "r2_log_price": 0.915952,
+      "r2_price": 0.8233,
+      "mae_rupees": 8700.4769,
+      "rmse_rupees": 15275.0533,
+      "mape_percent": 13.916,
+      "median_ape_percent": 12.2205,
+      "mae_log_price": 0.1367,
+      "share_within_10_20_30_percent": [
+        0.45,
+        0.76,
+        0.93
+      ],
+      "bootstrap_95ci_r2_log_price": [
+        0.897,
+        0.933
+      ],
+      "bootstrap_95ci_mae_rupees": [
+        7294,
+        10470
+      ]
+    },
+    "repeated_cv": {
+      "scheme": "GroupKFold 5 folds x 5 repeats on the 1,015 training rows",
+      "r2_log_price_mean": 0.8974,
+      "r2_log_price_std": 0.0138,
+      "r2_price_mean": 0.8203,
+      "r2_price_std": 0.0481,
+      "mae_rupees_mean": 9564.8638,
+      "mae_rupees_std": 1001.5546
+    }
+  },
+  "equivalence_check": {
+    "description": "Notebook 05 holdout evaluation re-run with the production code before refitting",
+    "r2_log_price": 0.915952,
+    "mae_rupees": 8700.4769
+  },
+  "known_limitations": [
+    "Trained on a single dataset of 1,273 laptops listed around 2017-2018 (Intel 6th-8th gen, GTX 10-series era); prices of newer hardware (e.g. Intel 10th gen+, Ryzen 5000+, RTX GPUs, Apple Silicon) are extrapolations.",
+    "Prices shrink towards the middle: budget laptops are over-predicted (~ -11% mean signed error) and laptops above Rs 100k under-predicted (~ +12%); errors are largest for very expensive and workstation laptops.",
+    "Typical error is about 12% (median absolute percentage error on the holdout); identical configurations in the data already differ in price by about 4%, so no model can be exact.",
+    "Any CPU that does not start with 'Intel' is encoded as 'AMD Processor' (true in the training data, not for e.g. Apple M-series or Qualcomm).",
+    "Companies with fewer than 10 training laptops, and companies never seen in training, are grouped as \"Other\".",
+    "Categories unseen in training (e.g. a new TypeName) are encoded as all zeros by the one-hot encoder (drop=\"first\"), which makes them look like the first (dropped) category of that feature.",
+    "Flash Storage and Hybrid drives are not used as features; a laptop with only flash storage has SSD=0 and HDD=0.",
+    "Currency is the dataset's price unit (Indian rupees)."
+  ],
+  "environment": {
+    "python": "3.11.16",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.2",
+    "pandas": "3.0.6",
+    "numpy": "2.4.6",
+    "joblib": "1.6.0",
+    "note": "Load the joblib file with the same library versions (see environment.yml); the src package must be importable because the pipeline contains src.features.CompanyGrouper."
+  }
+}
