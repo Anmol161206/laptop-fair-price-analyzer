@@ -1,8 +1,9 @@
 """Curated laptop catalogue for the Find My Laptop feature.
 
-The data lives in catalogue/laptops.json. Every entry was checked on the manufacturer's official Indian store;
-`load_catalogue()` refuses entries that lack a source, a verification date or an official link, so unverified
-data cannot reach the UI. This module is independent of the historical price model in src/predict.py.
+The data lives in catalogue/laptops.json. Every entry was checked on the manufacturer's official Indian store or
+on an authorised Indian retailer; `load_catalogue()` refuses entries that lack a source, a verification date or an
+allowed link, so unverified data cannot reach the UI. Weight, battery and price may be unknown (null) and are then
+treated as unknown, never guessed. This module is independent of the historical price model in src/predict.py.
 """
 import json
 from dataclasses import dataclass, fields
@@ -12,10 +13,15 @@ from pathlib import Path
 
 CATALOGUE_PATH = Path(__file__).resolve().parents[1] / 'catalogue' / 'laptops.json'
 
-# Only links to these official stores are accepted.
-OFFICIAL_URL_PREFIXES = ('https://www.hp.com/in-en/', 'https://www.apple.com/in/')
+# Only links to these official brand stores and authorised retailers are accepted.
+MANUFACTURER_URL_PREFIXES = ('https://www.hp.com/in-en/', 'https://www.apple.com/in/')
+RETAILER_URL_PREFIXES = ('https://www.vijaysales.com/p/',)
+OFFICIAL_URL_PREFIXES = MANUFACTURER_URL_PREFIXES + RETAILER_URL_PREFIXES
 OS_VALUES = ('Windows', 'macOS')
 POWER_CLASSES = ('efficient', 'performance', 'gaming')
+AVAILABILITY = ('in_stock', 'out_of_stock', 'unknown')
+SOURCE_TYPES = ('manufacturer', 'authorised_retailer')
+OPTIONAL_NUMBERS = ('weight_kg', 'battery_wh', 'price_inr')     # may be null = unknown
 
 
 class CatalogueError(ValueError):
@@ -43,31 +49,42 @@ class Laptop:
     resolution_w: int
     resolution_h: int
     refresh_hz: int | None
-    weight_kg: float
-    battery_wh: float
+    weight_kg: float | None
+    battery_wh: float | None
     power_class: str
-    price_inr: float
+    price_inr: float | None
     price_source: str
     url: str
     verified_on: str
+    availability: str = 'unknown'
+    source_type: str = 'manufacturer'
 
     @property
     def display_name(self):
-        return self.model if self.model.startswith(self.brand) else f'{self.brand} {self.model}'
+        return self.model if self.model.lower().startswith(self.brand.lower()) else f'{self.brand} {self.model}'
 
     @property
     def storage_label(self):
         return f'{self.storage_gb // 1024} TB SSD' if self.storage_gb >= 1024 else f'{self.storage_gb} GB SSD'
 
 
+def normalise_part(part):
+    """'E5SM2PA#ACJ' -> 'E5SM2PAACJ'; used for duplicate detection across sources."""
+    return ''.join(ch for ch in str(part).upper() if ch.isalnum())
+
+
 def _validate(entry):
     names = {f.name for f in fields(Laptop)}
+    entry = {'availability': 'unknown', 'source_type': 'manufacturer', **entry}
     missing = sorted(names - set(entry))
     if missing:
         raise CatalogueError(f"{entry.get('id', '?')}: missing fields {missing}")
     lid = entry['id']
-    if not str(entry['url']).startswith(OFFICIAL_URL_PREFIXES):
-        raise CatalogueError(f'{lid}: url must point to an official store {OFFICIAL_URL_PREFIXES}')
+    prefixes = MANUFACTURER_URL_PREFIXES if entry['source_type'] == 'manufacturer' else RETAILER_URL_PREFIXES
+    if entry['source_type'] not in SOURCE_TYPES or not str(entry['url']).startswith(prefixes):
+        raise CatalogueError(f'{lid}: url must point to an allowed source {prefixes}')
+    if entry['availability'] not in AVAILABILITY:
+        raise CatalogueError(f'{lid}: availability must be one of {AVAILABILITY}')
     if not entry['price_source'] or not entry['part_number']:
         raise CatalogueError(f'{lid}: price_source and part_number are required')
     try:
@@ -82,8 +99,10 @@ def _validate(entry):
         if entry[key] not in (1, 2, 3, 4, 5):
             raise CatalogueError(f'{lid}: {key} must be 1-5')
     for key in ('ram_gb', 'storage_gb', 'display_in', 'weight_kg', 'battery_wh', 'price_inr'):
-        if not isinstance(entry[key], (int, float)) or entry[key] <= 0:
-            raise CatalogueError(f'{lid}: {key} must be a positive number')
+        if key in OPTIONAL_NUMBERS and entry[key] is None:
+            continue
+        if isinstance(entry[key], bool) or not isinstance(entry[key], (int, float)) or entry[key] <= 0:
+            raise CatalogueError(f'{lid}: {key} must be a positive number' + (' or null' if key in OPTIONAL_NUMBERS else ''))
     if entry['cuda'] and not entry['gpu_dedicated']:
         raise CatalogueError(f'{lid}: cuda requires a dedicated NVIDIA GPU')
     return Laptop(**{k: entry[k] for k in names})
@@ -97,8 +116,12 @@ def load_catalogue(path=None):
     ids = [l.id for l in laptops]
     if len(ids) != len(set(ids)):
         raise CatalogueError('duplicate laptop ids')
-    parts = [l.part_number for l in laptops]
-    if len(parts) != len(set(parts)):
-        raise CatalogueError('duplicate part numbers')
+    parts = [normalise_part(l.part_number) for l in laptops]
+    dupes = sorted({p for p in parts if parts.count(p) > 1})
+    if dupes:
+        raise CatalogueError(f'duplicate part numbers: {dupes}')
+    urls = [l.url.lower().rstrip('/') for l in laptops]
+    if len(urls) != len(set(urls)):
+        raise CatalogueError('duplicate product urls')
     meta = {k: v for k, v in data.items() if k != 'laptops'}
     return meta, laptops

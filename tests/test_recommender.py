@@ -8,8 +8,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.catalogue import load_catalogue
-from src.recommender import (EXAMPLE_QUERIES, Requirements, extract_requirements, parse_budget, recommend,
-                             spec_profile, weights_for, workload_fit)
+from src.recommender import (EXAMPLE_QUERIES, Requirements, extract_requirements, gpu_class_label, parse_budget,
+                             recommend, spec_profile, weights_for, workload_fit)
 
 LAPTOPS = load_catalogue()[1]
 
@@ -146,7 +146,7 @@ class TestRecommend(unittest.TestCase):
         self.assertTrue(all(r.laptop.os == 'macOS' for r in final_cut.recommendations))
 
     def test_low_budget_is_not_relaxed(self):
-        res = recommend(extract_requirements('college student, notes and browsing, budget 45k'))
+        res = recommend(extract_requirements('college student, notes and browsing, budget 30k'))
         self.assertEqual(res.status, 'over_budget')
         self.assertIn('No verified laptop', res.message)
         self.assertTrue(res.profile.rec_ram >= 8)               # spec advice still produced
@@ -159,7 +159,7 @@ class TestRecommend(unittest.TestCase):
     def test_higher_price_never_raises_score(self):
         req = Requirements(workloads=['programming'])
         base = {r.laptop.id: r.score for r in recommend(req, top_n=50).recommendations}
-        target = LAPTOPS[3]
+        target = next(l for l in LAPTOPS if l.id in base)          # a laptop that is actually ranked for this need
         dearer = [replace(l, price_inr=l.price_inr * 1.5) if l.id == target.id else l for l in LAPTOPS]
         after = {r.laptop.id: r.score for r in recommend(req, laptops=dearer, top_n=50).recommendations}
         self.assertLessEqual(after[target.id], base[target.id])
@@ -167,7 +167,8 @@ class TestRecommend(unittest.TestCase):
     def test_portability_priority_favours_lighter(self):
         heavy_first = recommend(Requirements(workloads=['everyday'], portability='Low'), top_n=50).recommendations
         light_first = recommend(Requirements(workloads=['everyday'], portability='High'), top_n=50).recommendations
-        avg = lambda recs: sum(r.laptop.weight_kg for r in recs[:3]) / 3
+        known = lambda recs: [r.laptop.weight_kg for r in recs if r.laptop.weight_kg is not None][:5]
+        avg = lambda recs: sum(known(recs)) / len(known(recs))
         self.assertLessEqual(avg(light_first), avg(heavy_first))
 
     def test_weights_sum_to_one(self):
@@ -206,6 +207,127 @@ class TestRecommend(unittest.TestCase):
         self.assertTrue(all(r.laptop.ram_gb >= 16 and r.laptop.price_inr <= 100_000 for r in designer))
         programmer = run('software developer, VS Code and Docker, budget 90k')
         self.assertTrue(all(r.laptop.ram_gb >= 16 for r in programmer))
+
+
+class TestExpandedCatalogue(unittest.TestCase):
+    PERSONAS = {
+        'college': ('College student, mostly notes, browsing and online classes. Budget ₹40,000.', 40_000),
+        'engineering': ('First-year engineering student, MATLAB and AutoCAD for assignments. Budget 55k.', 55_000),
+        'cs': ('Computer science student, coding in Python and Java with VS Code. Budget ₹75,000.', 75_000),
+        'ml': ('Student learning machine learning and deep learning with PyTorch. Budget 90k.', 90_000),
+        'casual_gamer': ('I want to play Valorant and Minecraft casually. Budget ₹65,000.', 65_000),
+        'gaming': ('Gaming enthusiast, I play GTA V and Cyberpunk. Budget 1.2 lakh.', 120_000),
+        'cad': ('Mechanical engineering student using SolidWorks and ANSYS. Budget under 1 lakh.', 100_000),
+        'designer': ('Graphic designer working in Photoshop, Illustrator and Figma. Budget 1,10,000.', 110_000),
+        'business': ('Business professional, Excel, PowerPoint and video meetings, I travel a lot. Budget 85k.', 85_000),
+        'premium': ('I want a premium thin and light ultrabook with long battery life for work. Budget ₹1,60,000.', 160_000),
+    }
+
+    def run_persona(self, key):
+        text, budget = self.PERSONAS[key]
+        req = extract_requirements(text)
+        self.assertEqual(req.budget_max, budget)
+        return req, recommend(req)
+
+    def test_all_personas_respect_budget_and_os(self):
+        for key in self.PERSONAS:
+            req, res = self.run_persona(key)
+            with self.subTest(key):
+                self.assertTrue(res.recommendations)
+                if res.status != 'over_budget':
+                    self.assertTrue(all(r.laptop.price_inr is not None and r.laptop.price_inr <= req.budget_max
+                                        for r in res.recommendations))
+                if res.profile.required_os:
+                    self.assertTrue(all(r.laptop.os == res.profile.required_os for r in res.recommendations))
+
+    def test_persona_specific_expectations(self):
+        _, gaming = self.run_persona('gaming')
+        self.assertEqual(gaming.status, 'ok')
+        self.assertTrue(all(r.laptop.gpu_dedicated and r.laptop.gpu_tier >= 3 for r in gaming.recommendations))
+        _, cad = self.run_persona('cad')
+        self.assertTrue(all(r.laptop.os == 'Windows' and r.laptop.gpu_tier >= 2 for r in cad.recommendations))
+        _, cs = self.run_persona('cs')
+        self.assertEqual(cs.status, 'ok')
+        self.assertTrue(all(r.laptop.ram_gb >= 16 for r in cs.recommendations))
+        _, casual = self.run_persona('casual_gamer')       # no dedicated GPU exists under 65k in the catalogue
+        self.assertEqual(casual.status, 'below_minimum')
+        self.assertTrue(all(r.gaps for r in casual.recommendations))
+        _, college = self.run_persona('college')
+        self.assertEqual(college.status, 'ok')
+        _, premium = self.run_persona('premium')
+        self.assertTrue(all(r.laptop.weight_kg is not None and r.laptop.weight_kg <= 1.5 for r in premium.recommendations))
+
+    def test_unverified_price_never_fits_a_budget(self):
+        target = next(l for l in LAPTOPS if l.price_inr and l.price_inr < 70_000)
+        unknown = [replace(l, price_inr=None) if l.id == target.id else l for l in LAPTOPS]
+        res = recommend(Requirements(workloads=['everyday'], budget_max=500_000), laptops=unknown, top_n=100)
+        self.assertNotIn(target.id, [r.laptop.id for r in res.recommendations])
+        self.assertEqual(res.excluded[target.id], 'price not verified')
+        anyprice = recommend(Requirements(workloads=['everyday']), laptops=unknown, top_n=100)   # no budget: listed, no value credit
+        rec = next(r for r in anyprice.recommendations if r.laptop.id == target.id)
+        self.assertEqual(next(c['score'] for c in rec.breakdown if c['key'] == 'value'), 0.0)
+        self.assertIsNone(rec.budget_gap)
+
+    def test_unknown_weight_is_neutral_and_flagged(self):
+        lap = next(l for l in LAPTOPS if l.weight_kg is None)
+        from src.recommender import portability_score
+        self.assertEqual(portability_score(lap), 0.5)
+        res = recommend(Requirements(workloads=['everyday'], portability='High'), laptops=(lap,))
+        self.assertTrue(any('Weight is not stated' in c for c in res.recommendations[0].cons))
+
+    def test_top_three_are_varied(self):
+        from src.recommender import _series
+        for key in ('cs', 'business', 'designer', 'gaming'):
+            _, res = self.run_persona(key)
+            series = [_series(r.laptop) for r in res.recommendations]
+            with self.subTest(key):
+                self.assertEqual(len(series), len(set(series)))
+
+
+class TestGpuClassification(unittest.TestCase):
+    """Regression: Apple silicon GPUs are integrated SoC graphics; the tier is a performance class only."""
+
+    def test_apple_silicon_is_integrated_without_cuda(self):
+        macs = [l for l in LAPTOPS if l.brand == 'Apple']
+        self.assertTrue(macs)
+        for lap in macs:
+            with self.subTest(lap.id):
+                self.assertFalse(lap.gpu_dedicated)
+                self.assertFalse(lap.cuda)
+                self.assertIn('Integrated', gpu_class_label(lap).title())
+                self.assertNotIn('dedicated', gpu_class_label(lap).lower())
+
+    def test_m5_pro_is_pro_class_integrated_not_dedicated(self):
+        from src.ui_components import comparison_table
+        mbp = next(l for l in LAPTOPS if 'M5 Pro' in l.gpu)
+        self.assertEqual(mbp.gpu_tier, 3)
+        self.assertEqual(gpu_class_label(mbp), 'Integrated, Pro-class performance')
+        html = comparison_table([mbp, next(l for l in LAPTOPS if l.brand == 'Apple' and l is not mbp)])
+        self.assertNotIn('Dedicated', html)
+
+    def test_dedicated_and_cuda_only_for_nvidia(self):
+        for lap in LAPTOPS:
+            with self.subTest(lap.id):
+                self.assertEqual(lap.cuda, 'NVIDIA' in lap.gpu.upper())
+                if lap.gpu_dedicated:
+                    self.assertIn('dedicated', gpu_class_label(lap).lower())
+                else:
+                    self.assertNotIn('dedicated', gpu_class_label(lap).lower())
+
+    def test_cuda_workloads_flag_macs(self):
+        result = recommend(extract_requirements('Deep learning with PyTorch, budget 3 lakh, I prefer a Mac'))
+        macs = [r for r in result.recommendations if r.laptop.os == 'macOS']
+        self.assertTrue(macs)
+        for rec in macs:
+            self.assertTrue(any('CUDA' in c for c in rec.cons))
+            self.assertLess(workload_fit(rec.laptop, result.profile), 1.0)
+
+    def test_gaming_does_not_recommend_macs(self):
+        for q in ('I play Valorant, budget 3.5 lakh, I prefer a Mac', 'AAA gaming laptop, budget 3.5 lakh, prefer macOS'):
+            with self.subTest(q):
+                result = recommend(extract_requirements(q))
+                self.assertTrue(result.recommendations)
+                self.assertTrue(all(r.laptop.os == 'Windows' for r in result.recommendations))
 
 
 if __name__ == '__main__':

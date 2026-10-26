@@ -26,9 +26,9 @@ class TestFindMyLaptopApp(unittest.TestCase):
         self.assertEqual(len(at.exception), 0, [e.value for e in at.exception])
         return at
 
-    def test_four_tabs_and_idle_state(self):
+    def test_five_sections_and_idle_state(self):
         at = self.AppTest.from_file(APP_PATH, default_timeout=60).run()
-        self.assertEqual(len(at.tabs), 4)
+        self.assertEqual(len(at.tabs), 5)          # Find, Explore, Compare, Price Lab, How it works
         self.assertEqual(len(at.exception), 0)
         self.assertNotIn('fm_result', at.session_state)
 
@@ -54,26 +54,35 @@ class TestFindMyLaptopApp(unittest.TestCase):
     def test_editing_requirements_updates_results(self):
         at = self.run_example('Mechanical engineer')
         before = [r.laptop.id for r in at.session_state['fm_result'].recommendations]
-        at.number_input(key='fm_budget').set_value(100000).run()
+        at.number_input(key='fm_budget').set_value(70000).run()
         after = at.session_state['fm_result']
         self.assertEqual(len(at.exception), 0)
         self.assertNotEqual(before, [r.laptop.id for r in after.recommendations])
-        self.assertNotEqual(after.status, 'ok')        # nothing meets CAD minimums under 1 lakh -> honest fallback
+        self.assertNotEqual(after.status, 'ok')        # nothing meets CAD minimums under 70k -> honest fallback
 
     def test_compare_preselects_recommendations(self):
         at = self.run_example('Business user')
         names = [r.laptop.display_name for r in at.session_state['fm_result'].recommendations]
         self.assertEqual(at.multiselect(key='cmp_select').value, names)
 
+    def test_compare_scores_only_with_an_active_brief(self):
+        def compare_tables(at):
+            return [m.value for m in at.markdown if 'class="cmp"' in m.value and 'Comparison of' in m.value]
+        idle = self.AppTest.from_file(APP_PATH, default_timeout=60).run()
+        self.assertTrue(compare_tables(idle))
+        self.assertFalse(any('Meets your recommended specs' in t for t in compare_tables(idle)))
+        searched = self.run_example('Business user')
+        self.assertTrue(any('Meets your recommended specs' in t for t in compare_tables(searched)))
+
     def test_low_budget_shows_no_cards_and_keeps_specs(self):
         at = self.AppTest.from_file(APP_PATH, default_timeout=60).run()
-        at.text_area(key='fm_query').set_value('college student, notes and browsing, budget 45k').run()
+        at.text_area(key='fm_query').set_value('college student, notes and browsing, budget 30k').run()
         at.button(key='fm_find').click().run()
         self.assertEqual(len(at.exception), 0)
         html = ' '.join(m.value for m in at.markdown)
         self.assertEqual(at.session_state['fm_result'].status, 'over_budget')
         self.assertNotIn('class="lap', html)                       # no recommendation cards
-        self.assertIn('Recommended specifications', html)
+        self.assertIn('The specs that matter for you', html)     # spec advice still shown
         self.assertTrue(any('above your budget' in e.label for e in at.expander))
 
     def test_contradictory_os_note_shown(self):
@@ -82,6 +91,21 @@ class TestFindMyLaptopApp(unittest.TestCase):
         html = ' '.join(m.value for m in at.markdown)
         self.assertIn('needs Windows', html)
         self.assertTrue(all(r.laptop.os == 'Windows' for r in at.session_state['fm_result'].recommendations))
+
+    def test_brand_filter(self):
+        at = self.run_example('Gamer')
+        at.multiselect(key='fm_brands').set_value(['Lenovo']).run()
+        self.assertEqual(len(at.exception), 0)
+        recs = at.session_state['fm_result'].recommendations
+        self.assertTrue(recs and all(r.laptop.brand == 'Lenovo' for r in recs))
+
+    def test_retailer_source_labelled(self):
+        at = self.AppTest.from_file(APP_PATH, default_timeout=60).run()
+        at.text_area(key='fm_query').set_value('college student, notes and browsing, budget ₹40,000').run()
+        at.button(key='fm_find').click().run()
+        html = ' '.join(m.value for m in at.markdown)
+        self.assertIn('Vijay Sales', html)
+        self.assertIn('in stock when checked', html)
 
     def test_historical_estimator_still_separate(self):
         at = self.run_example('CS student')

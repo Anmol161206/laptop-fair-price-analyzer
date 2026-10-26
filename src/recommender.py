@@ -206,8 +206,16 @@ CPU_CLASS = {1: 'Entry (Core 3 class)', 2: 'Mainstream (Core Ultra 5 / Ryzen 5 c
              3: 'Performance (H/HX-class 5-7 series or Apple M5)', 4: 'High performance (7/9-series HX/H or Apple M5 Pro)',
              5: 'Top tier (9-series HX)'}
 GPU_CLASS = {1: 'Integrated graphics is enough', 2: 'Strong integrated (Intel Arc or Apple M-series)',
-             3: 'Dedicated GPU (RTX 3050/4050/5050 class) or Apple Pro GPU', 4: 'Mid-range dedicated (RTX 5060 class)',
+             3: 'Entry dedicated GPU (RTX 3050/4050/5050 class) or Apple Pro integrated GPU', 4: 'Mid-range dedicated (RTX 5060 class)',
              5: 'Upper-mid dedicated (RTX 5070 class)'}
+
+
+def gpu_class_label(lap):
+    """Short graphics class for display. The tier is a performance class; the architecture comes from
+    `gpu_dedicated`, so Apple silicon (integrated SoC graphics) is never labelled as a dedicated GPU."""
+    if not lap.gpu_dedicated:
+        return {1: 'Integrated', 2: 'Strong integrated'}.get(lap.gpu_tier, 'Integrated, Pro-class performance')
+    return {4: 'Mid-range dedicated', 5: 'Upper-mid dedicated'}.get(lap.gpu_tier, 'Entry dedicated')
 
 
 @dataclass(frozen=True)
@@ -301,12 +309,16 @@ def workload_fit(lap, p):
 
 
 def portability_score(lap):
+    """0-1 from weight; an unknown weight is neutral (0.5) rather than guessed."""
+    if lap.weight_kg is None:
+        return 0.5
     return clamp((2.6 - lap.weight_kg) / (2.6 - 1.2))
 
 
 def battery_score(lap):
     """Battery-friendliness estimate from capacity and power class - not a measured runtime."""
-    return 0.4 * clamp((lap.battery_wh - 40) / 45) + 0.6 * POWER_FACTOR[lap.power_class]
+    capacity = 0.5 if lap.battery_wh is None else clamp((lap.battery_wh - 40) / 45)   # unknown capacity = neutral
+    return 0.4 * capacity + 0.6 * POWER_FACTOR[lap.power_class]
 
 
 def screen_score(lap, req):
@@ -353,7 +365,7 @@ class RecommendationResult:
 
 def _explain(lap, p, req):
     pros, cons = [], []
-    label = p.primary_label.lower()
+    label = p.primary_label if p.primary_label[:3].isupper() or p.primary_label[:2] == '3D' else p.primary_label[0].lower() + p.primary_label[1:]
     if p.required_os and lap.os == p.required_os:
         pros.append(f'Runs {lap.os}, which your software or games require')
     if lap.ram_gb >= p.rec_ram:
@@ -378,13 +390,16 @@ def _explain(lap, p, req):
         cons.append('Display refresh rate is not stated as high-refresh')
     if lap.storage_gb < p.rec_storage:
         cons.append(f'{storage_text(lap.storage_gb)} SSD may fill quickly; {storage_text(p.rec_storage)} is recommended')
-    if lap.weight_kg <= 1.45:
+    if lap.weight_kg is None:
+        if req.portability == 'High':
+            cons.append('Weight is not stated by the seller; check it if you carry the laptop daily')
+    elif lap.weight_kg <= 1.45:
         pros.append(f'Light at {lap.weight_kg:g} kg, easy to carry every day')
     elif lap.weight_kg >= 2.2:
         cons.append(f'Heavy at {lap.weight_kg:g} kg, less convenient to carry daily')
     if lap.power_class == 'gaming':
         cons.append('High-power gaming hardware: expect to stay near a charger for demanding work')
-    elif lap.power_class == 'efficient' and lap.battery_wh >= 50:
+    elif lap.power_class == 'efficient' and lap.battery_wh and lap.battery_wh >= 50:
         pros.append(f'Efficient processor with a {lap.battery_wh:g} Wh battery')
     if lap.resolution_w >= 2560 and ({'design', 'video', 'engineering'} & set(req.workloads)):
         pros.append(f'High-resolution {lap.resolution_w}×{lap.resolution_h} display')
@@ -397,12 +412,14 @@ def _explain(lap, p, req):
 
 def _trade_off(lap, top):
     bits = []
-    diff = top.price_inr - lap.price_inr
-    if abs(diff) >= 1000:
-        bits.append(f'₹{abs(diff):,.0f} {"cheaper" if diff > 0 else "more expensive"}')
-    dw = top.weight_kg - lap.weight_kg
-    if abs(dw) >= 0.1:
-        bits.append(f'{abs(dw):.2f} kg {"lighter" if dw > 0 else "heavier"}')
+    if top.price_inr is not None and lap.price_inr is not None:
+        diff = top.price_inr - lap.price_inr
+        if abs(diff) >= 1000:
+            bits.append(f'₹{abs(diff):,.0f} {"cheaper" if diff > 0 else "more expensive"}')
+    if top.weight_kg is not None and lap.weight_kg is not None:
+        dw = top.weight_kg - lap.weight_kg
+        if abs(dw) >= 0.1:
+            bits.append(f'{abs(dw):.2f} kg {"lighter" if dw > 0 else "heavier"}')
     if lap.gpu_tier != top.gpu_tier:
         bits.append('stronger graphics' if lap.gpu_tier > top.gpu_tier else 'weaker graphics')
     if lap.ram_gb != top.ram_gb:
@@ -419,6 +436,28 @@ def score_laptop(lap, p, req, value_norm):
     return sum(c['score'] * c['weight'] for c in breakdown), breakdown
 
 
+def _series(lap):
+    """Brand + first words of the model name, e.g. 'asus vivobook 15' - used to keep the top three varied."""
+    words = re.sub(r'[^a-z0-9 ]', ' ', lap.model.lower()).split()
+    return lap.brand.lower(), ' '.join(words[:3])
+
+
+def _diverse_top(recs, top_n):
+    """Best-scoring first, but skip a near-identical variant (same brand and series) while other good options remain."""
+    chosen, seen = [], set()
+    for r in recs:
+        if _series(r.laptop) not in seen:
+            chosen.append(r); seen.add(_series(r.laptop))
+        if len(chosen) == top_n:
+            return chosen
+    for r in recs:                       # not enough distinct series: fill with the next best variants
+        if r not in chosen:
+            chosen.append(r)
+        if len(chosen) == top_n:
+            break
+    return sorted(chosen, key=lambda r: -r.score)
+
+
 def recommend(req, laptops=None, top_n=3):
     """Rank catalogue laptops for `req`. Never returns a laptop that violates the OS requirement."""
     if laptops is None:
@@ -431,8 +470,8 @@ def recommend(req, laptops=None, top_n=3):
             excluded[lap.id] = f'needs {os_needed}'
             continue
         os_ok.append(lap)
-        if req.budget_max is not None and lap.price_inr > req.budget_max:
-            excluded[lap.id] = 'over budget'
+        if req.budget_max is not None and (lap.price_inr is None or lap.price_inr > req.budget_max):
+            excluded[lap.id] = 'price not verified' if lap.price_inr is None else 'over budget'   # unknown price never 'fits'
             continue
         in_budget.append(lap)
         gaps = meets_minimum(lap, p)
@@ -454,7 +493,7 @@ def recommend(req, laptops=None, top_n=3):
                    'their shortcomings are listed.')
     else:
         pool, status = os_ok, 'over_budget'
-        cheapest = min((l.price_inr for l in os_ok), default=None)
+        cheapest = min((l.price_inr for l in os_ok if l.price_inr is not None), default=None)
         message = ('No verified laptop in the catalogue fits your budget'
                    + (f' (the cheapest verified option for your OS needs is ₹{cheapest:,.0f})' if cheapest else '')
                    + '. The recommended specifications above still apply.')
@@ -462,23 +501,23 @@ def recommend(req, laptops=None, top_n=3):
         return RecommendationResult('over_budget', 'No laptop in the catalogue matches the operating-system requirement.',
                                     p, [], excluded)
 
-    raw_value = {l.id: workload_fit(l, p) / l.price_inr for l in pool}
-    best_value = max(raw_value.values())
+    raw_value = {l.id: (workload_fit(l, p) / l.price_inr if l.price_inr else 0.0) for l in pool}
+    best_value = max(raw_value.values()) or 1.0
     recs = []
     for lap in pool:
         total, breakdown = score_laptop(lap, p, req, raw_value[lap.id] / best_value)
         pros, cons = _explain(lap, p, req)
-        gap = None if req.budget_max is None else req.budget_max - lap.price_inr
+        gap = None if req.budget_max is None or lap.price_inr is None else req.budget_max - lap.price_inr
         recs.append(Recommendation(lap, total, breakdown, pros, cons, meets_minimum(lap, p), gap))
-    recs.sort(key=lambda r: (-r.score, r.laptop.price_inr, r.laptop.id))
-    recs = recs[:top_n]
+    recs.sort(key=lambda r: (-r.score, r.laptop.price_inr or float('inf'), r.laptop.id))
+    recs = _diverse_top(recs, top_n)
     for r in recs[1:]:
         r.trade_off = _trade_off(r.laptop, recs[0].laptop)
     message = override + message
-    if req.portability == 'High' and recs and all(r.laptop.weight_kg > 2.0 for r in recs):
+    if req.portability == 'High' and recs and all((r.laptop.weight_kg or 0) > 2.0 for r in recs):
         message += (' Portability matters to you, but every laptop that meets these performance needs weighs over '
                     '2 kg; the lighter models in the catalogue fall below the minimum specs.')
-    elif req.portability == 'High' and recs and recs[0].laptop.weight_kg > 2.0:
+    elif req.portability == 'High' and recs and (recs[0].laptop.weight_kg or 0) > 2.0:
         message += (f' Note: the top match weighs {recs[0].laptop.weight_kg:g} kg; it wins on performance, '
                     'so check the lighter alternatives below if carrying it daily matters more.')
     return RecommendationResult(status, message, p, recs, excluded)

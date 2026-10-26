@@ -11,7 +11,7 @@ The Laptop Fair-Price Analyzer is a laptop-buying assistant with two parts:
 
 1. **Find My Laptop (main feature).** Describe your course or job, software, games, budget and preferences in plain
    English. The app works out what you need, recommends hardware specs, and shows the three best-matching laptops
-   from a small catalogue verified on official Indian brand stores. Each match comes with its price, verification
+   from a catalogue of 67 configurations verified on official brand stores and an authorised Indian retailer. Each match comes with its price, verification
    date, reasons, trade-offs and a store link, and you can compare laptops side by side.
 2. **Historical Price Estimator.** An XGBoost model trained on 1,273 laptops from 2016–18 estimates a reference price
    from specifications. It is kept as a separate, clearly labelled research tool.
@@ -122,9 +122,9 @@ What was actually done in this repository:
    - Automated tests: 37 at that stage, covering the model pipeline and the website.
 7. **Streamlit deployment.** `app.py` on Streamlit Community Cloud.
 8. **V2: Find My Laptop.**
-   - A verified 18-laptop catalogue, rule-based requirement extraction, and explainable ranking.
+   - A verified catalogue (later expanded to 67 laptops from HP, Lenovo, ASUS, Dell, Acer and Apple), rule-based requirement extraction, and explainable ranking.
    - Compare and About tabs.
-   - 37 more tests, for 74 in total.
+   - 54 more tests, for 91 in total.
 
 ## Architecture
 
@@ -237,7 +237,7 @@ existing model: `python -m src.train --metadata-only`.
 | `src/recommender.py` | Find My Laptop: requirement extraction, spec profiles, filtering, scoring, explanations |
 | `src/catalogue.py` | Loads and validates the verified catalogue |
 | `src/ui_components.py` | HTML cards, chips, score bars and the comparison table (all text escaped) |
-| `catalogue/laptops.json` | 18 laptop configurations verified on HP India and Apple India stores (prices dated) |
+| `catalogue/laptops.json` | 67 laptop configurations verified on HP/Apple India stores and Vijay Sales (prices dated, sources recorded) |
 | `artifacts/laptop_price_model.joblib` | Fitted pipeline (company grouping, one-hot encoding, XGBoost) |
 | `artifacts/model_metadata.json` | Features, company grouping, dropdown values, metrics, limitations, library versions |
 | `requirements.txt` | Minimal runtime dependencies (pip, used by Streamlit Community Cloud) |
@@ -260,7 +260,7 @@ existing model: `python -m src.train --metadata-only`.
 
 ## Limitations
 
-- **Find My Laptop's catalogue is small:** 18 configurations (₹62,999 to ₹2,99,900), from HP India and Apple India only, because those stores publish machine-readable product pages. Results are the best matches *within* it. Prices were verified on 26 Oct 2026 and are not live.
+- **Find My Laptop's catalogue is limited:** 67 configurations (₹37,599 to ₹2,99,900) from HP, Lenovo, ASUS, Dell, Acer and Apple. Sources are the HP and Apple India stores plus one authorised retailer (Vijay Sales). Only 3 laptops are under ₹50,000. Retailer listings often omit weight, battery or the exact processor model; these are shown as "not stated". Prices were verified on 26 Oct 2026 and are not live.
 - The historical model's dataset is **historical** (hardware of roughly 2016–2018: Intel 6th–8th generation CPUs, GeForce GTX 10-series GPUs). Newer hardware is an extrapolation.
 - It is not live retailer data. Current discounts, promotions, laptop age and condition are not modelled.
 - The exact model and build quality may carry price information that is not in the dataset.
