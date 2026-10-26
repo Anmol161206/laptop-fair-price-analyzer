@@ -7,12 +7,14 @@
 
 ## Project overview
 
-The Laptop Fair-Price Analyzer estimates a **reference price** (in INR) for a laptop from its hardware
-specifications. It uses an XGBoost model trained on a historical dataset of 1,273 laptops.
+The Laptop Fair-Price Analyzer is a laptop-buying assistant with two parts:
 
-You choose a laptop's specifications: company, type, RAM, CPU, GPU, storage, display and operating system. The app
-returns the price the model would expect for that configuration. You can also enter a seller's listed price to see
-how far it is from that estimate.
+1. **Find My Laptop (main feature).** Describe your course or job, software, games, budget and preferences in plain
+   English. The app works out what you need, recommends hardware specs, and shows the three best-matching laptops
+   from a small catalogue verified on official Indian brand stores. Each match comes with its price, verification
+   date, reasons, trade-offs and a store link, and you can compare laptops side by side.
+2. **Historical Price Estimator.** An XGBoost model trained on 1,273 laptops from 2016–18 estimates a reference price
+   from specifications. It is kept as a separate, clearly labelled research tool.
 
 ## Why this project exists
 
@@ -30,6 +32,20 @@ Because the training data is historical, the estimate reflects how prices relate
 not a statement about today's market.
 
 ## Features
+
+**Find My Laptop**
+
+- Rule-based understanding of free text (no paid AI): degrees and professions, software (e.g. SolidWorks, MATLAB,
+  Premiere Pro, PyTorch), games, budgets ("1.2 lakh", "70k", "under ₹90,000"), portability, battery, OS and screen size.
+- Shows what it understood, with the evidence; every requirement is editable and results update instantly.
+- Handles vague or conflicting input with explicit notes (e.g. no budget given; "MacBook" plus SolidWorks, which
+  needs Windows).
+- Recommended RAM, processor class, graphics class and storage, with reasons per workload.
+- Top three laptops with a transparent suitability score and breakdown, reasons, trade-offs and official store links.
+- Honest fallbacks when nothing fits: the closest options are shown with their shortcomings.
+- A Compare tab and an About tab explaining the method and its limits.
+
+**Historical Price Estimator**
 
 - A form with dropdowns limited to values present in the training data (117 CPUs, 105 GPUs, observed RAM and storage sizes, 15 resolutions).
 - The estimated reference price, shown with Indian digit grouping (e.g. ₹1,23,400).
@@ -103,8 +119,12 @@ What was actually done in this repository:
    - One feature-engineering module shared by training and prediction.
    - A frozen training script that first reproduces the notebook 05 result exactly.
    - A validated prediction interface.
-   - Automated tests: 37 in total, covering the model pipeline and the website.
+   - Automated tests: 37 at that stage, covering the model pipeline and the website.
 7. **Streamlit deployment.** `app.py` on Streamlit Community Cloud.
+8. **V2: Find My Laptop.**
+   - A verified 18-laptop catalogue, rule-based requirement extraction, and explainable ranking.
+   - Compare and About tabs.
+   - 37 more tests, for 74 in total.
 
 ## Architecture
 
@@ -121,6 +141,19 @@ exp(prediction) → estimated price
 ```
 
 The app contains no feature-engineering logic of its own. Training, prediction and tests all use `src/features.py`.
+
+Find My Laptop is a separate, deterministic pipeline that never touches the historical model:
+
+```text
+free text → extract_requirements()   src/recommender.py   (editable Requirements)
+          → spec_profile()           minimum + recommended hardware per workload
+          → recommend()              OS/budget/minimum filters → weighted score → pros, cons, trade-offs
+catalogue/laptops.json → load_catalogue()   src/catalogue.py   (rejects entries without official source/date)
+```
+
+**Scoring.** The defaults are workload fit 50%, value for money 15%, portability 15%, battery friendliness 10% and
+screen match 10%. Weights shift with the user's priorities, and value counts for less once a budget is set. CPU and
+GPU "classes" follow a documented chip-family rule, not benchmarks.
 
 ## Run locally
 
@@ -201,6 +234,10 @@ existing model: `python -m src.train --metadata-only`.
 | `src/predict.py` | Public interface `predict_laptop_price(specs)` with input validation |
 | `src/features.py` | Single source of truth for feature engineering |
 | `src/app_helpers.py` | UI-only helpers: INR formatting, resolution labels, listed-price comparison |
+| `src/recommender.py` | Find My Laptop: requirement extraction, spec profiles, filtering, scoring, explanations |
+| `src/catalogue.py` | Loads and validates the verified catalogue |
+| `src/ui_components.py` | HTML cards, chips, score bars and the comparison table (all text escaped) |
+| `catalogue/laptops.json` | 18 laptop configurations verified on HP India and Apple India stores (prices dated) |
 | `artifacts/laptop_price_model.joblib` | Fitted pipeline (company grouping, one-hot encoding, XGBoost) |
 | `artifacts/model_metadata.json` | Features, company grouping, dropdown values, metrics, limitations, library versions |
 | `requirements.txt` | Minimal runtime dependencies (pip, used by Streamlit Community Cloud) |
@@ -223,7 +260,8 @@ existing model: `python -m src.train --metadata-only`.
 
 ## Limitations
 
-- The dataset is **historical** (hardware of roughly 2016–2018: Intel 6th–8th generation CPUs, GeForce GTX 10-series GPUs). Newer hardware is an extrapolation.
+- **Find My Laptop's catalogue is small:** 18 configurations (₹62,999 to ₹2,99,900), from HP India and Apple India only, because those stores publish machine-readable product pages. Results are the best matches *within* it. Prices were verified on 26 Oct 2026 and are not live.
+- The historical model's dataset is **historical** (hardware of roughly 2016–2018: Intel 6th–8th generation CPUs, GeForce GTX 10-series GPUs). Newer hardware is an extrapolation.
 - It is not live retailer data. Current discounts, promotions, laptop age and condition are not modelled.
 - The exact model and build quality may carry price information that is not in the dataset.
 - Errors are larger for very expensive and unusual laptops, and extreme prices are pulled towards the middle.
